@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>보이스 테스트</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #05070c;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        h1 { 
+            font-size: 1.6rem; 
+            margin-bottom: 25px; 
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+            font-weight: 800;
+            text-align: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #0d131f;
+            border: 1px solid #1e293b;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.7);
+            box-sizing: border-box;
+            position: relative;
+        }
+        /* 화면 전환을 위한 클래스 */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .btn-container { text-align: center; margin-bottom: 25px; }
+        button {
+            background-color: transparent;
+            color: #00ffcc;
+            border: 2px solid #00ffcc;
+            padding: 12px 28px;
+            font-size: 1rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+            transition: all 0.3s ease;
+        }
+        button:hover { 
+            background-color: #00ffcc;
+            color: #05070c;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.6);
+        }
+        button:disabled {
+            cursor: not-allowed;
+        }
+        .info-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+        .info-box {
+            background: #060a12;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid #111827;
+        }
+        .info-label { font-size: 0.8rem; color: #64748b; margin-bottom: 6px; font-weight: 600; }
+        #db-value { color: #ff0055; text-shadow: 0 0 10px rgba(255, 0, 85, 0.4); }
+        #hz-value { color: #39ff14; text-shadow: 0 0 10px rgba(57, 255, 20, 0.4); }
+        .info-value { font-size: 1.6rem; font-weight: 800; }
+        
+        .graph-container { margin-bottom: 20px; }
+        .graph-title { font-size: 0.85rem; color: #475569; margin-bottom: 8px; font-weight: 600; }
+        canvas {
+            width: 100%;
+            height: 120px;
+            background: #04060a;
+            border: 1px solid #0f172a;
+            border-radius: 8px;
+            display: block;
+        }
+
+        /* 결과 페이지 스타일 */
+        .result-container {
+            text-align: center;
+            padding: 10px 0;
+        }
+        .result-subtitle {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-bottom: 5px;
+        }
+        .result-hz {
+            font-size: 1.2rem;
+            color: #39ff14;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+        .instrument-emoji {
+            font-size: 5rem;
+            margin-bottom: 15px;
+            animation: pulse 2s infinite;
+        }
+        .instrument-name {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #00ffcc;
+            text-shadow: 0 0 15px rgba(0, 255, 204, 0.6);
+            margin-bottom: 15px;
+        }
+        .instrument-desc {
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            word-break: keep-all;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); text-shadow: 0 0 20px rgba(0,255,255,0.5); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="analysis-page" class="page active">
+            <h1>🎙️ 목소리 테스트</h1>
+            <div class="btn-container">
+                <button id="start-btn">테스트 시작 (3초간 목소리 내기)</button>
+            </div>
+
+            <div class="info-panel">
+                <div class="info-box">
+                    <div class="info-label">소리 크기</div>
+                    <div id="db-value" class="info-value">0 dB</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">진동수 (주파수)</div>
+                    <div id="hz-value" class="info-value">0 Hz</div>
+                </div>
+            </div>
+
+            <div class="graph-container">
+                <div class="graph-title">음파 파형</div>
+                <canvas id="waveform-canvas"></canvas>
+            </div>
+
+            <div class="graph-container">
+                <div class="graph-title">주파수 스펙트럼</div>
+                <canvas id="frequency-canvas"></canvas>
+            </div>
+        </div>
+
+        <div id="result-page" class="page">
+            <div class="result-container">
+                <h1>🎵 분석 결과</h1>
+                <div class="result-subtitle">당신의 평균 목소리 진동수</div>
+                <div id="result-hz-value" class="result-hz">0 Hz</div>
+                
+                <div id="instrument-emoji" class="instrument-emoji">🎻</div>
+                <div id="instrument-name" class="instrument-name">악기 이름</div>
+                <div id="instrument-desc" class="instrument-desc">악기 설명</div>
+
+                <button id="restart-btn" style="margin-top: 10px;">다시 테스트하기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const analysisPage = document.getElementById('analysis-page');
+        const resultPage = document.getElementById('result-page');
+        
+        const dbValue = document.getElementById('db-value');
+        const hzValue = document.getElementById('hz-value');
+        const resultHzValue = document.getElementById('result-hz-value');
+        
+        const instEmoji = document.getElementById('instrument-emoji');
+        const instName = document.getElementById('instrument-name');
+        const instDesc = document.getElementById('instrument-desc');
+
+        const waveformCanvas = document.getElementById('waveform-canvas');
+        const frequencyCanvas = document.getElementById('frequency-canvas');
+        const waveCtx = waveformCanvas.getContext('2d');
+        const freqCtx = frequencyCanvas.getContext('2d');
+
+        let audioCtx, analyser, dataArray, bufferLength;
+        let animationId;
+        
+        let collectedFrequencies = [];
+        let isTesting = false;
+
+        const instruments = [
+            { min: 0, max: 80, name: "웅장한 튜바 (Tuba)", emoji: "📯", desc: "당신은 초저음의 지배자! 낮고 깊게 깔리는 동굴 목소리를 가졌군요. 오케스트라의 든든한 버팀목이 되는 튜바와 완벽히 닮았습니다." },
+            { min: 80, max: 200, name: "감성적인 첼로 (Cello)", emoji: "🎻", desc: "중저음이 매력적인 신사/숙녀의 목소리입니다. 따뜻하면서도 무게감 있는 진동수를 가졌으며, 사람의 마음을 편안하게 만드는 첼로 선율과 닮았습니다." },
+            { min: 200, max: 400, name: "낭만적인 기타 (Guitar)", emoji: "🎸", desc: "가장 풍부한 표현력을 가진 일상 속 꿀보이스! 대화할 때 가장 편안함을 주는 진동수로, 어디서나 잘 어우러지는 어쿠스틱 기타와 닮았습니다." },
+            { min: 400, max: 800, name: "청아한 플루트 (Flute)", emoji: "🎶", desc: "맑고 투명하게 울리는 고음의 소유자이시군요! 들었을 때 청량하고 예쁜 느낌을 주며, 부드럽고 가볍게 하늘을 나는 플루트의 소리와 닮았습니다." },
+            { min: 800, max: 20000, name: "화려한 바이올린 (Violin)", emoji: "🎻", desc: "시선을 사로잡는 마성의 초고음 천재! 에너지가 넘치고 높은 예술적 감성을 품은 진동수입니다. 오케스트라의 주인공인 바이올린처럼 화려하게 빛나는 목소리입니다." }
+        ];
+
+        function resizeCanvases() {
+            waveformCanvas.width = waveformCanvas.clientWidth;
+            waveformCanvas.height = waveformCanvas.clientHeight;
+            frequencyCanvas.width = frequencyCanvas.clientWidth;
+            frequencyCanvas.height = frequencyCanvas.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvases);
+        resizeCanvases();
+
+        startBtn.addEventListener('click', async () => {
+            if (isTesting) return;
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { echoCancellation: true, noiseSuppression: true }, 
+                    video: false 
+                });
+                
+                // AudioContext 초기화 및 사파리 대기(suspended) 상태 강제 깨우기
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                }
+
+                const source = audioCtx.createMediaStreamSource(stream);
+                
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 2048; 
+                bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+
+                source.connect(analyser);
+                
+                collectedFrequencies = [];
+                isTesting = true;
+                
+                let timeLeft = 3;
+                startBtn.disabled = true;
+                startBtn.innerText = `🔴 분석 중... (${timeLeft}초)`;
+                startBtn.style.color = "#ff0055";
+                startBtn.style.borderColor = "#ff0055";
+                startBtn.style.boxShadow = "0 0 20px rgba(255, 0, 85, 0.4)";
+
+                const timerInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft > 0) {
+                        startBtn.innerText = `🔴 분석 중... (${timeLeft}초)`;
+                    } else {
+                        clearInterval(timerInterval);
+                        endTest();
+                    }
+                }, 1000);
+
+                draw(); 
+            } catch (err) {
+                alert('마이크 접근 권한이 필요합니다. 상단 주소창이나 스마트폰 설정에서 마이크 권한을 확인해 주세요!\n\n에러 내용: ' + err);
+            }
+        });
+
+        function endTest() {
+            isTesting = false;
+            cancelAnimationFrame(animationId);
+            
+            const validFreqs = collectedFrequencies.filter(f => f > 0);
+            let avgHz = 0;
+            if (validFreqs.length > 0) {
+                const sum = validFreqs.reduce((a, b) => a + b, 0);
+                avgHz = Math.round(sum / validFreqs.length);
+            }
+
+            const matched = instruments.find(inst => avgHz >= inst.min && avgHz < inst.max) || instruments[2];
+
+            resultHzValue.innerText = avgHz + " Hz";
+            instEmoji.innerText = matched.emoji;
+            instName.innerText = matched.name;
+            instDesc.innerText = matched.desc;
+
+            analysisPage.classList.remove('active');
+            resultPage.classList.add('active');
+        }
+
+        restartBtn.addEventListener('click', () => {
+            startBtn.disabled = false;
+            startBtn.innerText = "테스트 시작 (3초간 목소리 내기)";
+            startBtn.style.color = "#00ffcc";
+            startBtn.style.borderColor = "#00ffcc";
+            startBtn.style.boxShadow = "0 0 15px rgba(0, 255, 204, 0.2)";
+            
+            dbValue.innerText = "0 dB";
+            hzValue.innerText = "0 Hz";
+
+            resultPage.classList.remove('active');
+            analysisPage.classList.add('active');
+            resizeCanvases();
+        });
+
+        function draw() {
+            if (!isTesting) return;
+            animationId = requestAnimationFrame(draw);
+
+            const wWidth = waveformCanvas.width;
+            const wHeight = waveformCanvas.height;
+            const fWidth = frequencyCanvas.width;
+            const fHeight = frequencyCanvas.height;
+
+            // --- 1. 파형 그리기 ---
+            analyser.getByteTimeDomainData(dataArray);
+            waveCtx.fillStyle = '#04060a';
+            waveCtx.fillRect(0, 0, wWidth, wHeight);
+            waveCtx.shadowBlur = 8;
+            waveCtx.shadowColor = '#ff0055';
+            waveCtx.lineWidth = 2.5;
+            waveCtx.strokeStyle = '#ff0055'; 
+            waveCtx.beginPath();
+
+            let sliceWidth = wWidth * 1.0 / bufferLength;
+            let x = 0;
+            let sumSquares = 0; 
+
+            for (let i = 0; i < bufferLength; i++) {
+                let v = dataArray[i] / 128.0; 
+                let y = v * wHeight / 2;
+                let normalized = (dataArray[i] - 128) / 128;
+                sumSquares += normalized * normalized;
+
+                if (i === 0) waveCtx.moveTo(x, y);
+                else waveCtx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            waveCtx.lineTo(wWidth, wHeight / 2);
+            waveCtx.stroke();
+            waveCtx.shadowBlur = 0; 
+
+            let rms = Math.sqrt(sumSquares / bufferLength);
+            let db = rms > 0 ? Math.round(20 * Math.log10(rms) + 85) : 0; 
+            db = Math.max(0, Math.min(db, 120)); 
+            dbValue.innerText = db + " dB";
+
+            // --- 2. 주파수 스펙트럼 및 데이터 수집 ---
+            analyser.getByteFrequencyData(dataArray);
+            freqCtx.fillStyle = '#04060a';
+            freqCtx.fillRect(0, 0, fWidth, fHeight);
+            freqCtx.shadowBlur = 6;
+            freqCtx.shadowColor = '#39ff14';
+
+            let barWidth = (fWidth / (bufferLength / 2)) * 1.5; 
+            let barHeight;
+            let freqX = 0;
+            let maxVal = -1;
+            let maxIndex = -1;
+
+            for (let i = 0; i < bufferLength / 2; i++) { 
+                barHeight = dataArray[i];
+                if (barHeight > maxVal) {
+                    maxVal = barHeight;
+                    maxIndex = i;
+                }
+                freqCtx.fillStyle = '#39ff14'; 
+                let renderedHeight = (barHeight / 255) * fHeight * 0.9;
+                freqCtx.fillRect(freqX, fHeight - renderedHeight, barWidth - 1, renderedHeight);
+                freqX += barWidth;
+            }
+            freqCtx.shadowBlur = 0; 
+
+            if (maxVal > 35 && maxIndex > -1) { 
+                let peakHz = Math.round(maxIndex * audioCtx.sampleRate / analyser.fftSize);
+                hzValue.innerText = peakHz + " Hz";
+                collectedFrequencies.push(peakHz); 
+            } else {
+                hzValue.innerText = "0 Hz";
+                collectedFrequencies.push(0);
+            }
+        }
+    </script>
+</body>
+</html>
